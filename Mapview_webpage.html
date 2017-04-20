@@ -1,0 +1,208 @@
+<!DOCTYPE html>																			<!--to start server type benedikt@BF-LinuxMint ~/Schreibtisch/Valhalla/valhalla $ valhalla_route_service valhalla.json 1 in a Terminal-->
+<html>
+	<head>
+		<title>Accessibility Analysis</title>
+		<!--favicon einfügen-->															<!--favicon einfügen-->
+  		<meta charset="utf-8" />
+  		<meta name="viewport" content="width=device-width, initial-scale=1.0">			<!--media query - for mobile devices-->										
+
+		<!--Include Leaflet-->
+		<link rel="stylesheet" href="https://unpkg.com/leaflet@1.0.1/dist/leaflet.css" />		
+		<script src="https://unpkg.com/leaflet@1.0.1/dist/leaflet.js"></script>
+
+		<!--Include jQuery-->
+	  	<script src="https://code.jquery.com/jquery-2.2.4.min.js" integrity="sha256-BbhdlvQf/xTY9gja0Dq3HiwQF8LaCRTXxZKRutelT44=" crossorigin="anonymous"></script>
+
+		<!--include easyButton extension of Leaflet	https://github.com/CliffCloud/Leaflet.EasyButton 	http://danielmontague.com/projects/easyButton.js/-->
+		<link rel="stylesheet" href="https://unpkg.com/leaflet-easybutton@2.0.0/src/easy-button.css">
+		<script src="https://unpkg.com/leaflet-easybutton@2.0.0/src/easy-button.js"></script>
+
+		<!--include sidebar extension of Leaflet	https://github.com/Turbo87/leaflet-sidebar 	https://github.com/Turbo87/sidebar-v2-->		
+		<link rel="stylesheet" href="sidebar.css" />
+		<script src="sidebar.js"></script>
+
+  		<!--Include own CSS file-->
+		<link rel="stylesheet" href="style.css" />
+	</head>
+
+	<body>
+		<div id="container">
+			<div id="header">
+				<script>		
+					var cost = "auto";														//Defaultvalues of the variables
+					var polygon = false;													//Documentation at https://mapzen.com/documentation/mobility/isochrone/api-reference/
+					var denoise = 0.2;
+					var generalization = 0;
+					var setId = "test";
+
+					var marker;
+				</script>
+			</div>																			<!--header-->
+
+			<div id="sidebar">
+        		<h1>Settings</h1>
+				<form>																		<!--change the values of the variables-->
+					<table>
+						<tbody>
+							<tr>
+								<td>
+									<b>Vehicle:</b>
+								</td>
+								<td>
+									<select id= "select_vehicle" name="vehicle" size="1" onchange="cost = this.value">	<!--choose of a vehicle and set this vehicle for computing the costs (cost = this.value)-->
+										<option value="bicycle">Bicycle</option>
+										<option value="bus">Bus</option>					  
+										<option value="auto" selected="selected">Car, Motorcylce, Truck (shortest time)</option>
+								 	 	<option value="auto_shorter">Car (shortest path)</option>
+								  		<option value="hov">High-Occupancy Vehicle (HOV)</option>	<!--Kfz in dem mehr als eine Person sitzt-->
+										<option value="multimodal">Multimodal</option>
+								  		<option value="pedestrian">Pedestrian</option>
+									</select>
+								</td>
+							</tr>
+
+							<tr>
+								<td>
+									<b>Isochrones:</b>
+								</td>					
+								<td>
+									<select name="area" size="1" onchange= "polygon = this.value">	<!--choose whether the reachable are should be shown via isolines or via polygons (polygon = this.value)-->					  
+										<option value=false selected="selected">Isolines</option>	<!--eventuell durch einen switch-Schlater ersetzen-->	
+								 	 	<option value=true>Polygons</option>						<!--Polygon-Methode bisher nur Schwarz-Weiß-->
+									</select>
+								</td>
+							</tr>
+
+							<tr>
+								<td>													<!--define a value for denoise-->
+									<span 
+										title="A floating point value from 0 to 1 which can be used to remove smaller contours. A value of 1 will only return the largest contour for a given time value. A value of 0.5 drops any contours that are less than half the area of the largest contour in the set of contours for that same time value. A value of 0 will return all contours for a time value.">
+											<b>Denoise:</b> 
+									</span>
+								</td>
+								<td>
+									<input id="denoise_value" type="number" min="0" max="1" step="0.1" value="0.2" onchange="denoise = this.value">
+								</td>
+							</tr>
+
+							<tr>
+								<td>													<!--define a value for the generalization-->
+									<span 
+										title="A floating point value in meters used as the tolerance for Douglas-Peucker generalization. Note: Generalization of contours can lead to self-intersections, as well as intersections of adjacent contours.">
+											<b>Generalization:</b> 
+									</span>
+								</td>
+								<td>
+									<input id="generalization_value" type="number" min="0" max="1000" step="1" value="0" onchange="generalization = this.value">
+								</td>
+							</tr>
+
+							<tr>
+								<td>													<!--define a name for the isoline request-->
+									<b>Name:</b> 
+								</td>
+								<td>
+									<input type="text" id="giveId" name="setName"value="" onchange="setId = this.value"> 
+								</td>
+							</tr>
+						</tbody>
+					</table> 				
+				</form>
+    		</div>	<!--sidebar-->
+
+	  		<div id="map"></div>
+
+	  		<script>
+				//make a map
+				var map = L.map('map').setView([47.6, 9.15], 13);						//L = Leaflet 	initialize the map and set its view to chosen geographcal coordinates(latitude/Breitengrad, longitude/Längengrad, Zoomstufe)
+																						//47.6, 9.15 (Kreuzlingen)
+				var geojson = null;
+				var tooltips = [];
+
+	   			//use osm tiles
+				L.tileLayer('http://b.tile.openstreetmap.org/{z}/{x}/{y}.png', {		//Add a OSM tile layer to add to the map
+		  			maxZoom: 18,
+		  			attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a> contributers'	//Copyright
+				}).addTo(map);
+
+				 var sidebar = L.control.sidebar('sidebar', {
+            		closeButton: true,
+            		position: 'left'													//left or right
+        		});
+       			map.addControl(sidebar);
+
+				//add a scale bar to the map
+				L.control.scale().addTo(map);
+
+				//add menu button to the map
+				L.easyButton('<span id="menuButton">&equiv;</span>', function(){
+					sidebar.toggle();
+				}, 'Menu and settings').addTo(map);
+
+				//click callback
+				function onMapClick(e) {
+		  			//build url
+		  			var url = 'http://localhost:8002/isochrone?json=';					//war https://matrix.mapzen.com
+					var start = [{"lat":e.latlng.lat, "lon":e.latlng.lng}];					
+				   	//https://matrix.mapzen.com/isochrone?json={"locations":[{"lat":40.744014,"lon":-73.990508}],"costing":"auto","contours":[{"time":15,"color":"ff0000"}]}&id=Walk_From_Office
+		  			var json = {
+		    			locations: start,												//Startpunkt e. Koordinaten werden beim Klick in die Karte abgerufen 
+		    			costing: cost,													// auto, bicycle, pedestrian, bus,...
+		    			contours: [{"time":4,"color":"#ff0000"},{"time":8,"color":"#00ff00"},{"time":13,"color":"#0000ff"},{"time":17,"color":"#000000"}],	//,{"time":20,"color":"#abcdef"}
+						/* 1-4 Zeitintervalle möglich für 1-60 Minuten, gleichabständige Intervalle nicht zwingend	je größer die Intervalle, desto länger dauert die Berechnung
+						"time": in minutes	"color": hexadecimal without # Beispiel ff0000 anstatt #ff0000 für rot, muss nicht definiert werden, dann werden default Farben verwendet	"color":"ff0000", insgesammt nur 4 Angaben 							möglich, also wenn eine Farbe angegeben wird, fällt das längste Zeitintervall weg*/
+		    			polygons: polygon,												//true: Flächen in Graustufen, false: Isolinien in grün, hellgrün, orange, rot
+		    			denoise: denoise,												//noise=Lärm, rauschen=> denoise = entrauschen, Werte zwischen 0 und 1 
+		    			generalize: generalization,										//je höher die Zahl, desto stärker wird genralisiert: Standard: 150, Angabe in Meter als Toleranzwert für Douglas-Peuker Algorithmus
+						id: setId														//Name of the isochrone request
+		  			};
+
+		 	 		url += escape(JSON.stringify(json));								//Bilden der kompletten URL (url + json) im richtigen Format
+		  			//grab the url
+		  			$.getJSON(url,function computeIsochrones(isochrones){				//$ = jQuery
+		    			//clear this if its not null
+		    			if(geojson != null)
+		      			geojson.removeFrom(map);
+		    			//clear the tooltips
+		    			tooltips.forEach(function (tooltip) {							//tooltips array	forEach Schleife
+		      				tooltip.removeFrom(map);
+		    			});
+		    			tooltips = [];
+
+		    			//create the geojson object
+		   				geojson = L.geoJson(isochrones, {								//L = Leaflet
+		      				style: function(feature) {
+		        				return { opacity: feature.properties.opacity * 2,
+		                 			weight: 10,
+		                 			color: feature.properties.color
+		               			};
+		      				},
+		      				onEachFeature: function(feature, layer) {
+		        				var tooltip = layer.bindTooltip(feature.properties.contour + ' min', { sticky: true });					//tooltip=Kurzinfo, Definiert, was beim Mouse-over angezeigt wird (x min)
+		        				tooltips.push(tooltip);
+		        				tooltip.addTo(map);										//Mouse-over der Karte hinzufügen
+		      				}
+		    			});
+
+		    			//render the geojson											//Erzeugung der Bilddaten
+		    			geojson.addTo(map);
+		  			})
+
+					//set a marker to the starting position
+					//clear old marker
+					if (marker) {														//if marker exists delete it
+						marker.removeFrom(map);
+					}
+				
+					//set new marker
+					marker = L.marker(e.latlng);										//set a marker to the current clicked position		
+					map.addLayer(marker);												//alternativ vorherige Zeile: marker = L.marker(e.latlng).addTo(map);
+					marker.bindPopup("<b>Starting point :</b><br />"+e.latlng.toString());	//display the coordinates of the clicked point in the popup window
+				}
+					
+				//hook up the callback													//onClick-Listener setzen
+				map.on('click', onMapClick);
+	  		</script>
+		</div>
+	</body>
+</html>
