@@ -1,0 +1,281 @@
+<!DOCTYPE html>																																	<!--to start server type benedikt@BF-LinuxMint ~/Schreibtisch/Valhalla/valhalla $ valhalla_route_service valhalla.json 1 in a Terminal-->
+<html>
+	<head>
+		<title>Accessibility Analysis</title>
+		<meta charset="utf-8" />
+		<link rel="shortcut icon" type="image/png" href="../pictures/favicon.png">
+	  <meta name="viewport" content="width=device-width, initial-scale=1.0">			<!--media query - for mobile devices-->
+
+		<!--Include Leaflet-->
+		<link rel="stylesheet" href="https://unpkg.com/leaflet@1.0.1/dist/leaflet.css" />
+		<script src="https://unpkg.com/leaflet@1.0.1/dist/leaflet.js"></script>
+
+		<!--Include jQuery-->
+		<script src="https://code.jquery.com/jquery-2.2.4.min.js" integrity="sha256-BbhdlvQf/xTY9gja0Dq3HiwQF8LaCRTXxZKRutelT44=" crossorigin="anonymous"></script>
+
+		<!--include easyButton extension of Leaflet	https://github.com/CliffCloud/Leaflet.EasyButton 	http://danielmontague.com/projects/easyButton.js/-->
+		<link rel="stylesheet" href="https://unpkg.com/leaflet-easybutton@2.0.0/src/easy-button.css">
+		<script src="https://unpkg.com/leaflet-easybutton@2.0.0/src/easy-button.js"></script>
+
+		<!--include sidebar extension of Leaflet	https://github.com/Turbo87/leaflet-sidebar 	https://github.com/Turbo87/sidebar-v2-->
+		<link rel="stylesheet" href="sidebar.css" />
+		<script src="sidebar.js"></script>
+
+		<!--include geocoder extension of Leaflet	https://github.com/k4r573n/leaflet-control-osm-geocoder-->
+		<script src="Control.OSMGeocoder.js"></script>
+		<link rel="stylesheet" href="Control.OSMGeocoder.css" />
+
+		<!--Include own CSS file-->
+		<link rel="stylesheet" href="style.css" />
+	</head>
+<!-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------->
+	<body>
+		<div id="container">
+			<div id="header">
+				<script>
+					var cost = "auto";																										//Defaultvalues of the variables
+					var polygon = false;																									//Documentation at https://mapzen.com/documentation/mobility/isochrone/api-reference/
+					var denoise = 0.2;
+					var generalization = 0;
+					var minutes = 4;
+					var setId = "test";
+
+					var marker;
+				</script>
+			</div>																																		<!--header-->
+
+			<div id="sidebar">
+	      <h1>Settings</h1>
+					<form>																																<!--change the values of the variables-->
+						<table>
+							<tbody>
+								<tr>
+									<td>
+										<b>Vehicle:</b>
+									</td>
+									<td>
+										<select id= "select_vehicle" name="vehicle" size="1" onchange="cost = this.value, generateIsochrones()">	<!--choose of a vehicle and set this vehicle for computing the costs (cost = this.value)-->
+											<option value="bicycle">Bicycle</option>
+											<option value="bus">Bus</option>
+											<option value="auto" selected="selected">Car, Motorcylce, Truck (shortest time)</option>
+								 	 		<option value="auto_shorter">Car (shortest path)</option>
+								  		<option value="hov">High-Occupancy Vehicle (HOV)</option>	<!--Kfz in dem mehr als eine Person sitzt-->
+											<option value="multimodal">Multimodal</option>
+								  		<option value="pedestrian">Pedestrian</option>
+										</select>
+									</td>
+								</tr>
+
+								<tr>
+									<td>
+										<b>Isochrones:</b>
+									</td>
+									<td>
+										<select name="area" size="1" onchange= "polygon = this.value, generateIsochrones()">	<!--choose whether the reachable area should be shown via isolines or via polygons (polygon = this.value)-->
+											<option value=false selected="selected">Isolines</option>	<!--eventuell durch einen switch-Schlater ersetzen-->
+								 	 		<option value=true>Polygons</option>											<!--Polygon-Methode bisher nur Schwarz-Weiß-> src/baldr/geojson.cc	https://github.com/valhalla/valhalla/issues/669 and 670-->
+										</select>																										<!--change before installation line 69-70 ersetzen-->
+									</td>
+								</tr>
+
+								<tr>
+									<td>																													<!--define a value for denoise-->
+										<span
+											title="A floating point value from 0 to 1 which can be used to remove smaller contours. A value of 1 will only return the largest contour for a given time value. A value of 0.5 drops any contours that are less than half the area of the largest contour in the set of contours for that same time value. A value of 0 will return all contours for a time value.">
+											<b>Denoise:</b>
+										</span>
+									</td>
+									<td>
+										<input id="denoise_value" type="number" min="0" max="1" step="0.1" value="0.2" onchange="denoise = this.value, generateIsochrones()">
+									</td>
+								</tr>
+
+								<tr>
+									<td>																													<!--define a value for the generalization-->
+										<span
+											title="A (floating point) value in meters used as the tolerance for Douglas-Peucker generalization. Note: Generalization of contours can lead to self-intersections, as well as intersections of adjacent contours.">
+											<b>Generalization:</b>
+										</span>
+									</td>
+									<td>
+										<input id="generalization_value" type="number" min="0" max="1000" step="1" value="0" onchange="generalization = this.value, generateIsochrones()">
+									</td>
+								</tr>
+								<tr>
+									<td>																													<!--define a value for the time in minutes-->
+										<span
+											title="Duration of the travel time in minutes. For each minute an isochrone will be shown.">
+											<b>Travel time:</b>
+										</span>
+									</td>
+									<td>
+										<input id="minutes_value" type="number" min="1" max="20" step="1" value="4" onchange="minutes = this.value, generateIsochrones()">
+									</td>																													<!-- -> change before installation valhalla/scripts/valhalla_build_config line 179-183-->
+								</tr>
+
+								<tr>
+									<td>																													<!--define a name for the isoline request-->
+										<b>Name:</b>
+									</td>
+									<td>
+										<input id="giveId" type="text"  name="setName"value="" onchange="setId = this.value, generateIsochrones()">
+									</td>
+								</tr>
+							</tbody>
+						</table>
+					</form>
+    		</div>																																	<!--sidebar-->
+
+	  		<div id="map"></div>
+<!--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------->
+	  		<script>
+					//make a map
+					var map = L.map('map').setView([47.6, 9.15], 13);											//L = Leaflet 	initialize the map and set its view to chosen geographcal coordinates(latitude/Breitengrad, longitude/Längengrad, Zoomstufe)
+																																								//47.6, 9.15 (Kreuzlingen)
+					var geojson = null;
+					var tooltips = [];
+
+	   			//use osm tiles
+					L.tileLayer('http://b.tile.openstreetmap.org/{z}/{x}/{y}.png', {			//Add a OSM tile layer to add to the map
+		  			maxZoom: 18,
+		  			attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a> contributers'	//Copyright
+					}).addTo(map);
+
+				 	var sidebar = L.control.sidebar('sidebar', {
+          	closeButton: true,
+            position: 'left'																										//left or right
+        	});
+       		map.addControl(sidebar);
+
+					//add a scale bar to the map
+					L.control.scale().addTo(map);
+
+					//add Geocoder to the map
+					var osmGeocoder = new L.Control.OSMGeocoder({placeholder: 'Search location...'});
+					map.addControl(osmGeocoder);
+
+					//add menu button to the map
+					L.easyButton('<span id="menuButton">&equiv;</span>', function(){
+						sidebar.toggle();
+					}, 'Menu and settings').addTo(map);
+//----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+					function getLocation(e){																							//get coordinates from the points you clicked on the map
+						startLocation = [{"lat":e.latlng.lat, "lon":e.latlng.lng}];					//startLocation is a variable with global scope			globale Variable
+																																								//"var startLocation" in einer Funktion = lokale Variable		nur "startLocation" in einer Funktion = globale Variable
+						position = e.latlng;																								//different format in comparison to startLocation, needed for marker
+						generateIsochrones();
+					}
+
+					var traveltime = 1 + minutes - 1;		//check if minutes is a string or integer	->problems with changing the traveltime
+					var stringToInt = 2 + parseInt (minutes) - 1;
+
+					/* accepts parameters																									//http://stackoverflow.com/questions/17242144/javascript-convert-hsb-hsv-color-to-rgb-accurately first answer
+				 	* h  Object = {h:x, s:y, v:z}																					//change color from HSV system to RGB system
+				 	* OR
+				 	* h, s, v
+					*/
+					function HSVtoRGB(h, s, v) {																					//RGB color schema is needed for display colors on computer screen.
+						var r, g, b, i, f, p, q, t;																					//HSV color schema is needed for compute the color for each isochrone dependend on the number of isochrones,
+						if (arguments.length === 1) {																				//because it is easier to computethe values just for one scale (Hue-scale 0 to 1) insted of interdependent 3 scales (red, green, blue)
+							s = h.s, v = h.v, h = h.h;
+						}
+						i = Math.floor(h * 6);
+						f = h * 6 - i;
+						p = v * (1 - s);
+						q = v * (1 - f * s);
+						t = v * (1 - (1 - f) * s);
+						switch (i % 6) {
+							case 0: r = v, g = t, b = p; break;
+							case 1: r = q, g = v, b = p; break;
+							case 2: r = p, g = v, b = t; break;
+							case 3: r = p, g = q, b = v; break;
+							case 4: r = t, g = p, b = v; break;
+							case 5: r = v, g = p, b = q; break;
+						}
+						return {
+							r: Math.round(r * 255),
+							g: Math.round(g * 255),
+							b: Math.round(b * 255)
+						};
+					}
+
+/*to find error*/	//function alertMessage(){alert("minutes: " + minutes + " traveltime: " + traveltime + " parse: " + stringToInt)}
+//debugger;		//not in a function
+
+																																	//first color is red [((96/255)*(1-1)/(minutes-1), 1, 1) = 0], last color is green [((96/255)*(20-1)/(20-1), 1, 1) = 0.37]
+
+					//generate the isochrones
+					function generateIsochrones() {
+						if(typeof startLocation == 'undefined') return;
+
+						var contour = new Array();																						//draw as many isochrones as minutes defined for travel time and set their color automatically from green to red
+						for(i=1; i <= minutes; i++) {
+							var color = HSVtoRGB((96/255)*(i-1)/(minutes), 1, 1);							//96= green value in HSV-system 255=maximum value in HSV-system		see https://github.com/FastLED/FastLED/wiki/FastLED-HSV-Colors
+							contour[i - 1] = {"time": i,"color": "rgb("+color.r+","+color.g+","+color.b+")"};	//{"time":20,"color":"#abcdef"}		contour i-1 = i, because computer starts counting by 0, but minutes starts couning by 1
+						}
+
+		  			//build url
+		  			var url = 'http://localhost:8002/isochrone?json=';									//war https://matrix.mapzen.com
+				   																																			//https://matrix.mapzen.com/isochrone?json={"locations":[{"lat":40.744014,"lon":-73.990508}],"costing":"auto","contours":[{"time":15,"color":"ff0000"}]}&id=Walk_From_Office
+		  			var json = {
+		    			locations: startLocation,																					//Startpunkt e. Koordinaten werden beim Klick in die Karte abgerufen
+		    			costing: cost,																										// auto, bicycle, pedestrian, bus,...
+		    			contours: contour,																								//{"time":20,"color":"#abcdef"}
+																																								/*je größer die Intervalle, desto länger dauert die Berechnung, Farben werden falsch herum angegeben (time 1, color for time =3) (time 2, color for time =2) (time 3, color for time =1) "time": in minutes	"color": hexadecimal without # Beispiel ff0000 anstatt #ff0000 für rot !falsch # wird benötigt!, muss nicht definiert werden, dann werden default Farben verwendet*/
+		    			polygons: polygon,																								//true: Flächen in Graustufen, false: Isolinien in grün, hellgrün, orange, rot
+		    			denoise: denoise,																									//noise=Lärm, rauschen=> denoise = entrauschen, Werte zwischen 0 und 1
+		    			generalize: generalization,																				//je höher die Zahl, desto stärker wird genralisiert: Standard: 150, Angabe in Meter als Toleranzwert für Douglas-Peuker Algorithmus
+							id: encodeURIComponent(setId)																			//Name of the isochrone request		encodeURIComponent: to enable also special characters for the name. This changes this characters to %something for the request.
+		  			};
+
+		 	 			url += escape(JSON.stringify(json));																//Bilden der kompletten URL (url + json) im richtigen Format
+		  			//grab the url
+		  			$.getJSON(url,function computeIsochrones(isochrones){								//$ = jQuery
+		    			//clear this if its not null
+		    			if(geojson != null)
+		      			geojson.removeFrom(map);
+		    			//clear the tooltips
+		    			tooltips.forEach(function (tooltip) {															//tooltips array	forEach Schleife
+		      				tooltip.removeFrom(map);
+		    			});
+		    			tooltips = [];
+
+		    			//create the geojson object
+		   				geojson = L.geoJson(isochrones, {																	//L = Leaflet
+		      			style: function(feature) {
+		        			return {
+										opacity: feature.properties.opacity * 2,
+		               	weight: 10,
+		               	color: feature.properties.color
+		              };
+		      			},
+		      			onEachFeature: function(feature, layer) {
+		        			var tooltip = layer.bindTooltip(feature.properties.contour + ' min', { sticky: true });	//tooltip=Kurzinfo, Definiert, was beim Mouse-over angezeigt wird (x min)
+		        			tooltips.push(tooltip);
+		        			tooltip.addTo(map);																						//Mouse-over der Karte hinzufügen
+		      			}
+		    			});
+
+		    			//render the geojson																							//Erzeugung der Bilddaten
+		    			geojson.addTo(map);
+		  			})
+
+						//set a marker to the starting position
+						//clear old marker
+						if (marker) {																												//if marker exists delete it
+							marker.removeFrom(map);
+						}
+
+						//set new marker
+						marker = L.marker(position);																				//set a marker to the current clicked position
+						map.addLayer(marker);																								//alternativ vorherige Zeile: marker = L.marker(e.latlng).addTo(map);
+						marker.bindPopup("<b>Name:</b><br />"+setId.toString()+"<br /><b>Starting point:</b><br />"+position.toString());	//display the coordinates of the clicked point in the popup window
+					}																																			// function generateIsochrones
+//----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+				//hook up the callback																									//onClick-Listener setzen
+				map.on('click', getLocation);
+
+	  		</script>
+		</div>
+	</body>
+</html>
