@@ -1,0 +1,42 @@
+/* Control.OSMGeocoder
+ * This file contains all stylings that are necessary for geocoding
+ *
+ *  Received form https://github.com/k4r573n/leaflet-control-osm-geocoder
+ */
+
+.leaflet-control-geocoder {
+	box-shadow: 0 1px 7px #999;
+	background: #fff;
+	-moz-border-radius: 4px;
+	-webkit-border-radius: 4px;
+	border-radius: 4px;
+}
+
+.leaflet-control-geocoder a {
+	background-position: 50% 50%;
+	background-repeat: no-repeat;
+	display: block;
+	background-image: url(../pictures/geocoder.png);
+	width: 26px;
+	height: 26px;
+}
+
+.leaflet-touch{
+	width: 26px;
+	height: 26px;
+}
+
+.leaflet-control-geocoder .leaflet-control-geocoder-form,
+.leaflet-control-geocoder-expanded .leaflet-control-geocoder-toggle {
+	display: none;
+}
+
+.leaflet-control-geocoder-expanded .leaflet-control-geocoder-form {
+	display: block;
+	position: relative;
+	padding: 5px;
+}
+
+.leaflet-control-geocoder-form input[type="submit"]{
+	margin-left: 5px;
+}
